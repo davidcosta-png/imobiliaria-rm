@@ -6,6 +6,22 @@ from db import Repo
 def limpar_tela():
     os.system('cls' if os.name == 'nt' else 'clear')
 
+def login():
+    user_env = os.environ.get("APP_USER", "")
+    pass_env = os.environ.get("APP_PASS", "")
+    if user_env == "Adimin" and pass_env == "1234":
+        return True
+    tentativas = 3
+    while tentativas > 0:
+        u = input("Login: ").strip()
+        p = input("Senha: ").strip()
+        if u == "Adimin" and p == "1234":
+            return True
+        print("Credenciais invalidas.")
+        tentativas -= 1
+    print("Acesso negado.")
+    return False
+
 def to_bool(s, default=False):
     if s is None:
         return default
@@ -108,8 +124,6 @@ def launch_menu():
     print("="*40)
     print("   INICIO - IMOBILIÁRIA R.M")
     print("="*40)
-    print("1. Cadastrar cliente e gerar orçamento")
-    print("2. Buscar cliente cadastrado")
     print("3. Menu completo")
     print("0. Sair")
     print("="*40)
@@ -255,21 +269,14 @@ def editar_orcamento(repo: Repo):
 def main():
     repo = Repo()
     repo.init_db()
+    if not login():
+        return
     while True:
         escolha = launch_menu()
         if escolha == '0':
             print("Saindo...")
             break
-        if escolha == '1':
-            print("\nSelecione o tipo de imóvel:")
-            print("1. Apartamento")
-            print("2. Casa")
-            print("3. Estúdio")
-            tipo = input("Opção: ").strip()
-            criar_orcamento_interativo(repo, tipo)
-        elif escolha == '2':
-            buscar_cliente(repo)
-        elif escolha == '3':
+        if escolha == '3':
             while True:
                 opcao = menu()
                 if opcao == '0':
@@ -294,7 +301,8 @@ def main():
 if __name__ == "__main__":
     try:
         if os.environ.get("AUTO_START") == "1" or os.environ.get("TIPO_IMOVEL"):
-            run_env()
+            if login():
+                run_env()
         else:
             main()
     except KeyboardInterrupt:
