@@ -1,5 +1,9 @@
 import csv
 from abc import ABC, abstractmethod
+try:
+    from dataclasses import dataclass
+except Exception:
+    dataclass = None
 
 class Imovel(ABC):
     def __init__(self, tipo):
@@ -99,3 +103,16 @@ class Orcamento:
         print(f"Total nos meses de contrato: R$ {self.mensalidade + self.valor_parcela_contrato:.2f}")
         print(f"Total após contrato: R$ {self.mensalidade:.2f}")
         print("="*40)
+
+if dataclass:
+    @dataclass
+    class Cliente:
+        nome: str
+        documento: str = None
+        contato: str = None
+else:
+    class Cliente:  # fallback
+        def __init__(self, nome, documento=None, contato=None):
+            self.nome = nome
+            self.documento = documento
+            self.contato = contato
