@@ -25,6 +25,22 @@ def to_int(s, default=0):
         return default
 
 def run_env():
+    action = (os.environ.get("ACTION", "") or "").strip().lower()
+    if action == "buscar":
+        repo = Repo()
+        repo.init_db()
+        q = os.environ.get("QUERY", "") or ""
+        resultados = repo.find_clients(q) if q else []
+        if not resultados:
+            print("Nenhum cliente encontrado.")
+            return True
+        for r in resultados:
+            print(f"{r['id']}: {r['nome']}  Doc: {r['documento'] or ''}  Contato: {r['contato'] or ''}")
+            budgets = repo.list_budgets_by_client(r["id"])
+            for b in budgets:
+                st = repo.get_budget_status(b["id"])
+                print(f"  Budget {b['id']} • {b['tipo_imovel']} • Mensal R$ {b['mensalidade']:.2f} • Pago R$ {st['paid_total']:.2f} • Falta R$ {st['remaining_total']:.2f}")
+        return True
     tipo = (os.environ.get("TIPO_IMOVEL", "") or "").strip().lower()
     if not tipo:
         return False
@@ -47,6 +63,21 @@ def run_env():
     parcelas = to_int(os.environ.get("PARCELAS_CONTRATO"), 1)
     orcamento = Orcamento(imovel, parcelas)
     orcamento.exibir_resumo()
+    salvar_db = to_bool(os.environ.get("SALVAR_DB"), False)
+    if salvar_db:
+        repo = Repo()
+        repo.init_db()
+        nome_cli = os.environ.get("NOME_CLIENTE") or ""
+        doc_cli = os.environ.get("DOCUMENTO_CLIENTE") or None
+        contato_cli = os.environ.get("CONTATO_CLIENTE") or None
+        client_id = repo.add_client(nome_cli, doc_cli, contato_cli)
+        tipo_imovel = imovel.tipo
+        num_quartos = getattr(imovel, "num_quartos", None)
+        tem_criancas = 1 if getattr(imovel, "tem_criancas", True) else 0 if hasattr(imovel, "tem_criancas") else None
+        vaga_garagem = 1 if getattr(imovel, "vaga_garagem", False) else 0 if hasattr(imovel, "vaga_garagem") else None
+        num_vagas = getattr(imovel, "num_vagas", None)
+        budget_id = repo.add_budget(client_id, tipo_imovel, orcamento.mensalidade, orcamento.parcelas_contrato, orcamento.VALOR_CONTRATO_TOTAL, num_quartos, tem_criancas, vaga_garagem, num_vagas)
+        print(f"Orçamento salvo. Cliente ID {client_id}, Budget ID {budget_id}.")
     gerar = to_bool(os.environ.get("GERAR_CSV"), False)
     if gerar:
         nome = os.environ.get("CSV_NOME")
@@ -71,6 +102,18 @@ def menu():
     print("0. Sair")
     print("="*40)
     return input("Escolha o tipo de imóvel: ")
+
+def launch_menu():
+    limpar_tela()
+    print("="*40)
+    print("   INICIO - IMOBILIÁRIA R.M")
+    print("="*40)
+    print("1. Cadastrar cliente e gerar orçamento")
+    print("2. Buscar cliente cadastrado")
+    print("3. Menu completo")
+    print("0. Sair")
+    print("="*40)
+    return input("Escolha uma opção: ")
 
 def criar_orcamento_interativo(repo: Repo, tipo_opcao: str):
     imovel = None
@@ -213,22 +256,37 @@ def main():
     repo = Repo()
     repo.init_db()
     while True:
-        opcao = menu()
-        
-        if opcao == '0':
+        escolha = launch_menu()
+        if escolha == '0':
             print("Saindo...")
             break
-            
-        if opcao in ('1', '2', '3'):
-            criar_orcamento_interativo(repo, opcao)
-        elif opcao == '4':
+        if escolha == '1':
+            print("\nSelecione o tipo de imóvel:")
+            print("1. Apartamento")
+            print("2. Casa")
+            print("3. Estúdio")
+            tipo = input("Opção: ").strip()
+            criar_orcamento_interativo(repo, tipo)
+        elif escolha == '2':
             buscar_cliente(repo)
-        elif opcao == '5':
-            registrar_pagamento(repo)
-        elif opcao == '6':
-            editar_cliente(repo)
-        elif opcao == '7':
-            editar_orcamento(repo)
+        elif escolha == '3':
+            while True:
+                opcao = menu()
+                if opcao == '0':
+                    break
+                if opcao in ('1', '2', '3'):
+                    criar_orcamento_interativo(repo, opcao)
+                elif opcao == '4':
+                    buscar_cliente(repo)
+                elif opcao == '5':
+                    registrar_pagamento(repo)
+                elif opcao == '6':
+                    editar_cliente(repo)
+                elif opcao == '7':
+                    editar_orcamento(repo)
+                else:
+                    print("Opção inválida!")
+                    input("\nPressione Enter para continuar...")
         else:
             print("Opção inválida!")
             input("\nPressione Enter para continuar...")
